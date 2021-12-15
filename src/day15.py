@@ -1,5 +1,5 @@
-import heapq
-from typing import Optional, Union
+from heapq import heappop, heappush
+from typing import Optional, Tuple, Union
 
 import attr
 import numpy as np
@@ -20,10 +20,10 @@ class State:
 
 
 @attr.s(order=True, slots=True)
-class AstarState:
+class StateOpt:
     f: int = attr.ib()
     cost: int = attr.ib(order=False)
-    pos: Pos = attr.ib(order=False)
+    pos: Tuple[int, int] = attr.ib(order=False)
 
 
 def shortest_path(map: np.ndarray, start: Pos, end: Pos) -> Optional[int]:
@@ -34,27 +34,22 @@ def shortest_path(map: np.ndarray, start: Pos, end: Pos) -> Optional[int]:
     dist = np.ones_like(map) * 9999
     heap = []
     dist[start.y, start.x] = 0
-    heapq.heappush(heap, State(0, start))
+    heappush(heap, State(0, start))
     nodes = 0
 
     def push(edge_cost: int, pos: Pos):
         ncost = edge_cost + map[pos.y, pos.x]
         if ncost < dist[pos.y, pos.x]:
-            heapq.heappush(heap, State(ncost, pos))
+            heappush(heap, State(ncost, pos))
             dist[pos.y, pos.x] = ncost
 
     while heap:
         nodes += 1
-        # print("\n ===")
-        # print(dist)
-        state = heapq.heappop(heap)
+        state = heappop(heap)
         cost = state.cost
         position = state.pos
 
         if position == end:
-            #print(dist)
-            print(nodes)
-            print(np.sum(dist < 99999))
             return cost
 
         if cost > dist[position.y, position.x]:
@@ -73,50 +68,42 @@ def shortest_path(map: np.ndarray, start: Pos, end: Pos) -> Optional[int]:
 
 
 def shortest_path_opt(map: np.ndarray, start: Pos, end: Pos) -> Optional[int]:
-    """
-    Simple A*
-    """
     height, width = map.shape
     dist = np.ones_like(map) * 99999
     heap = []
     dist[start.y, start.x] = 0
-    heapq.heappush(heap, AstarState(0, 0, start))
-    nodes = 0
+    heappush(heap, StateOpt(0, 0, (start.y, start.x)))
 
-    def h(pos: Pos) -> int:
-        return (end.x - pos.x) + (end.y - pos.y)
+    e = (end.y, end.x)
 
-    def push(edge_cost: int, pos: Pos):
-        ncost = edge_cost + map[pos.y, pos.x]
-        if ncost < dist[pos.y, pos.x]:
-            dist[pos.y, pos.x] = ncost
-            heapq.heappush(heap, AstarState(ncost + h(pos), ncost, pos))
+    def push(edge_cost: int, pos: Tuple[int, int]):
+        ncost = edge_cost + map[pos]
+        if ncost < dist[pos]:
+            dist[pos] = ncost
+            heappush(heap, StateOpt(ncost, ncost, pos))
 
     while heap:
-        nodes += 1
-        #print("\n ===")
-        #print(dist)
-        state = heapq.heappop(heap)
+        state = heappop(heap)
         cost = state.cost
         position = state.pos
 
-        if position == end:
-            #print(dist)
-            print(nodes)
-            print(np.sum(dist < 99999))
+        if position == e:
             return cost
 
-        if cost > dist[position.y, position.x]:
+        if cost > dist[position]:
             continue
 
-        if position.y < height - 1:
-            push(cost, Pos(position.x, position.y + 1))
-        if position.x < width - 1:
-            push(cost, Pos(position.x + 1, position.y))
-        if position.y > 0:
-            push(cost, Pos(position.x, position.y - 1))
-        if position.x > 0:
-            push(cost, Pos(position.x - 1, position.y))
+        pos_y = position[0]
+        pos_x = position[1]
+
+        if pos_y < height - 1:
+            push(cost, (pos_y + 1, pos_x))
+        if pos_x < width - 1:
+            push(cost, (pos_y, pos_x + 1))
+        if pos_y > 0:
+            push(cost, (pos_y - 1, pos_x))
+        if pos_x > 0:
+            push(cost, (pos_y, pos_x - 1))
 
     return None
 
@@ -136,7 +123,7 @@ class Puzzle(aoc.Puzzle):
         2311944581
         """
     EXAMPLE_SOLUTION_PART1 = 40
-    EXAMPLE_SOLUTION_PART2 = None#315
+    EXAMPLE_SOLUTION_PART2 = 315
 
     def parse_input(self, inp: str) -> np.ndarray:
         return np.array([
