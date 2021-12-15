@@ -1,0 +1,8 @@
+target
+__pycache__
+.idea
+*.txt
+*.iml
+*~
+*.swp
+*.bak
