@@ -69,7 +69,7 @@ def shortest_path(map: np.ndarray, start: Pos, end: Pos) -> Optional[int]:
 
 def shortest_path_opt(map: np.ndarray, start: Pos, end: Pos) -> Optional[int]:
     height, width = map.shape
-    dist = np.ones_like(map) * 99999
+    dist = np.ones_like(map, dtype=np.int16) * 9999
     heap = []
     dist[start.y, start.x] = 0
     heappush(heap, StateOpt(0, 0, (start.y, start.x)))
@@ -129,7 +129,7 @@ class Puzzle(aoc.Puzzle):
         return np.array([
             [int(x) for x in row]
             for row in inp.split("\n")
-        ])
+        ], dtype=np.int16)
 
     def solve_part1(self, inp: str) -> Union[int, str, float]:
         map = self.parse_input(inp)
