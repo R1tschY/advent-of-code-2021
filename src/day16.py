@@ -2,6 +2,7 @@ import binascii
 from dataclasses import dataclass
 from functools import reduce
 from heapq import heappop, heappush
+from io import StringIO
 from operator import __mul__, methodcaller
 from typing import List, Optional, Tuple, Union
 
@@ -58,43 +59,40 @@ class Operator(Package):
             return 1 if self.pkgs[0].eval() == self.pkgs[1].eval() else 0
 
 
-def parse_pkg(b: str, i: int) -> Tuple[int, Package]:
-    version = int(b[i:i+3], 2)
-    type = int(b[i+3:i+6], 2)
-    i += 6
+def read_int(b: StringIO, bits: int) -> int:
+    return int(b.read(bits), 2)
+
+
+def parse_pkg(b: StringIO) -> Package:
+    version = read_int(b, 3)
+    type = read_int(b, 3)
     if type == 4:
         res: List[str] = []
-        while True:
-            res.append(b[i + 1:i + 5])
-            if b[i] == "0":
-                i += 5
-                break
-            i += 5
+        prefix = 1
+        while prefix == 1:
+            prefix = read_int(b, 1)
+            res.append(b.read(4))
         value = int("".join(res), 2)
         # print("LIT", version, type, value)
-        return i, Literal(version=version, value=value)
+        return Literal(version=version, value=value)
     else:
-        if b[i] == "1":
-            i += 1
-            subpkgs = int(b[i:i+11], 2)
-            i += 11
+        if read_int(b, 1):
+            subpkgs = read_int(b, 11)
             # print(f"OP1", version, type, subpkgs)
             pkgs = []
             for j in range(subpkgs):
-                i, pkg = parse_pkg(b, i)
+                pkg = parse_pkg(b)
                 pkgs.append(pkg)
-            return i, Operator(version=version, type=type, pkgs=pkgs)
+            return Operator(version=version, type=type, pkgs=pkgs)
         else:
-            i += 1
-            l = int(b[i:i+15], 2)
-            i += 15
+            l = read_int(b, 15)
             # print(f"OP0", version, type, l)
             pkgs = []
-            end = i + l
-            while i < end:
-                i, pkg = parse_pkg(b, i)
+            end = b.tell() + l
+            while b.tell() < end:
+                pkg = parse_pkg(b)
                 pkgs.append(pkg)
-            return i, Operator(version=version, type=type, pkgs=pkgs)
+            return Operator(version=version, type=type, pkgs=pkgs)
 
 
 class Puzzle(aoc.Puzzle):
@@ -118,12 +116,12 @@ class Puzzle(aoc.Puzzle):
 
     def solve_part1(self, inp: str) -> Union[int, str, float]:
         b = self.parse_input(inp)
-        i, pkg = parse_pkg(b, 0)
+        pkg = parse_pkg(StringIO(b))
         return pkg.sum_versions()
 
     def solve_part2(self, inp: str) -> Union[int, str, float]:
         b = self.parse_input(inp)
-        i, pkg = parse_pkg(b, 0)
+        pkg = parse_pkg(StringIO(b))
         return pkg.eval()
 
 
