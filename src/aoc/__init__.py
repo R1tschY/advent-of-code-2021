@@ -4,7 +4,7 @@ import textwrap
 import time
 from datetime import timedelta
 from pathlib import Path
-from typing import ClassVar, List, Optional, Union
+from typing import ClassVar, List, Optional, Tuple, Union
 
 import requests
 
@@ -12,10 +12,11 @@ YEAR = 2021
 
 
 class Puzzle:
-    DAY: ClassVar[int]
-    EXAMPLE: ClassVar[str]
-    EXAMPLE_SOLUTION_PART1: ClassVar[Union[int, str, float]]
-    EXAMPLE_SOLUTION_PART2: ClassVar[Optional[Union[int, str, float]]]
+    EXAMPLE: ClassVar[str] = None
+    EXAMPLE_SOLUTION_PART1: ClassVar[int] = None
+    EXAMPLE_SOLUTION_PART2: ClassVar[int] = None
+
+    EXAMPLES: ClassVar[List[Tuple[str, Optional[int], Optional[int]]]] = None
 
     def solve_part1(self, inp: str) -> Union[int, str, float]:
         raise NotImplementedError
@@ -24,28 +25,20 @@ class Puzzle:
         raise NotImplementedError
 
     def solve(self, inp: str = None):
+        examples = self._check_examples()
+
         if inp is None:
             pyfile = Path(inspect.getfile(self.__class__))
             inp = (pyfile.parent / f"{pyfile.stem}.txt")\
                 .read_text(encoding="utf-8")
-
         inp = textwrap.dedent(inp).strip()
-        example = textwrap.dedent(self.EXAMPLE).strip()
-
-        _assert_eq(
-            self.EXAMPLE_SOLUTION_PART1, self.solve_part1(example),
-            "part 1")
-
         start = time.perf_counter()
         solution1 = self.solve_part1(inp)
         end = time.perf_counter()
 
         print(f"Part 1 solution: {solution1} ({timedelta(seconds=end - start)})")
 
-        if self.EXAMPLE_SOLUTION_PART2:
-            _assert_eq(
-                self.EXAMPLE_SOLUTION_PART2, self.solve_part2(example), "part 2")
-
+        if any(value2 is not None for _, _, value2 in examples):
             start = time.perf_counter()
             solution2 = self.solve_part2(inp)
             end = time.perf_counter()
@@ -57,6 +50,32 @@ class Puzzle:
 
     def ints_input(self, input: str) -> List[int]:
         return [int(line) for line in input.split("\n")]
+
+    def _check_examples(self):
+        examples = []
+
+        if self.EXAMPLES:
+            examples.extend(self.EXAMPLES)
+
+        if self.EXAMPLE:
+            examples.append((
+                self.EXAMPLE,
+                self.EXAMPLE_SOLUTION_PART1,
+                self.EXAMPLE_SOLUTION_PART2))
+
+        for example, value1, value2 in examples:
+            self._check_example(example, value1, value2)
+
+        return examples
+
+    def _check_example(
+            self, example: str, value1: Optional[int], value2: Optional[int]):
+        example = textwrap.dedent(example).strip()
+
+        if value1 is not None:
+            _assert_eq(value1, self.solve_part1(example), "example part 1")
+        if value2 is not None:
+            _assert_eq(value2, self.solve_part2(example), "example part 2")
 
     def _get_input(self, year: int, day: int) -> str:
         cache_home = Path(os.environ.get(
