@@ -1,5 +1,5 @@
 import inspect
-import os.path
+import re
 import textwrap
 import time
 from datetime import timedelta
@@ -24,14 +24,10 @@ class Puzzle:
     def solve_part2(self, inp: str) -> Union[int, str, float]:
         raise NotImplementedError
 
-    def solve(self, inp: str = None):
+    def solve(self):
         examples = self._check_examples()
 
-        if inp is None:
-            pyfile = Path(inspect.getfile(self.__class__))
-            inp = (pyfile.parent / f"{pyfile.stem}.txt")\
-                .read_text(encoding="utf-8")
-        inp = textwrap.dedent(inp).strip()
+        inp = textwrap.dedent(self._get_input()).strip()
         start = time.perf_counter()
         solution1 = self.solve_part1(inp)
         end = time.perf_counter()
@@ -77,23 +73,31 @@ class Puzzle:
         if value2 is not None:
             _assert_eq(value2, self.solve_part2(example), "example part 2")
 
-    def _get_input(self, year: int, day: int) -> str:
-        cache_home = Path(os.environ.get(
-            "XDG_CACHE_HOME", os.path.expanduser("~/.cache")))
+    def _get_input(self) -> str:
+        puzzle_file = Path(inspect.getfile(self.__class__))
+        day = re.findall(r"day(\d+)", puzzle_file.stem)[0]
 
-        cache_folder = cache_home / f"aoc" / str(year)
-        cache_file = cache_folder / f"day{day:02}"
-
+        cache_file = puzzle_file.with_suffix(".txt")
         if cache_file.exists():
             return cache_file.read_text(encoding="utf-8")
 
+        session_cookie = self._read_session_cookie(puzzle_file)
         response = requests.get(
-            f"https://adventofcode.com/{year}/day/{day}/input")
+            f"https://adventofcode.com/{YEAR}/day/{day}/input",
+            cookies={"session": session_cookie})
         response.raise_for_status()
 
-        cache_folder.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(response.text, encoding="utf-8")
         return response.text
+
+    def _read_session_cookie(self, puzzle_file: Path):
+        path = puzzle_file.parent
+        while str(path) != path.root:
+            if (path / ".aocsession").exists():
+                return (path / ".aocsession").read_text().strip()
+            path = path.parent
+
+        raise RuntimeError("did not found .aocsession file")
 
 
 def _assert_eq(expected, actual, message):
